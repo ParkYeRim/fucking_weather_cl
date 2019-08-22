@@ -1,62 +1,53 @@
-import React, { Component } from "react";
-import { StyleSheet, Text, View, StatusBar } from "react-native";
+import React from "react";
+import { Alert } from "react-native";
+import Loading from "./Loading";
+import * as Location from "expo-location";
+import axios from "axios";
 import Weather from "./Weather";
 
-export default class App extends Component {
+const API_KEY = "574574a593d9d832c355a5ebb37cfefe";
+
+export default class extends React.Component {
   state = {
-    isLoaded: false,
-    error: null
+    isLoading: true
+  };
+  getWeather = async () => {
+    const {
+      data: {
+        main: { temp },
+        weather,
+        name
+      }
+    } = await axios.get(
+      `http://api.openweathermap.org/data/2.5/weather?lat=37.3916768&lon=126.9206248&APPID=${API_KEY}&units=metric`
+    );
+    this.setState({
+      isLoading: false,
+      condition: weather[0].main,
+      temp,
+      name
+    });
+  };
+  getLocation = async () => {
+    try {
+      await Location.requestPermissionsAsync();
+      const {
+        coords: { latitude, longitude }
+      } = await Location.getCurrentPositionAsync();
+      this.getWeather(latitude, longitude);
+    } catch (error) {
+      Alert.alert("Can't find you.", "So sad");
+    }
   };
   componentDidMount() {
-    navigator.geolocation.getCurrentPosition(
-      position => {
-        this.setState({
-          //error: "Something went wrong"
-          isLoaded: true
-        });
-        console.log(this.position);
-      },
-      error => {
-        this.setState({
-          error: error
-        });
-      }
-    );
+    this.getLocation();
   }
   render() {
-    const { isLoaded, error } = this.state;
-    return (
-      <View style={styles.container}>
-        <StatusBar hidden={true} />
-        {isLoaded ? (
-          <Weather />
-        ) : (
-          <View style={styles.loading}>
-            <Text style={styles.loadingText}>Getting the fucking weather</Text>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          </View>
-        )}
-      </View>
+    const { isLoading, temp, condition, name } = this.state;
+    return isLoading ? (
+      <Loading />
+    ) : (
+      <Weather temp={Math.round(temp)} condition={condition} name={name} />
     );
   }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff"
-  },
-  errorText: {
-    color: "red"
-  },
-  loading: {
-    flex: 1,
-    backgroundColor: "#FDF6AA",
-    justifyContent: "flex-end",
-    paddingLeft: 25
-  },
-  loadingText: {
-    fontSize: 34,
-    marginBottom: 100
-  }
-});
